@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#fff8eb">
+    <title>AnimationForge — Motion Code</title>
+  </head>
+  <body>
+    <aside class="sidebar">
+      <a class="brand" href="./"><span aria-hidden="true">✦</span> AnimationForge</a>
+      <a class="nav-link" href="#gallery">Motion Code</a>
+      <p>Made for people who make things.</p>
+    </aside>
+    <main>
+      <header>
+        <div>
+          <p class="eyebrow">MOTION CODE / VOL. 01</p>
+          <h1>Beautiful motion,<br><em>ready to remix.</em></h1>
+          <p>Pick an effect, make it yours, and take the code anywhere.</p>
+        </div>
+        <span class="sticker" aria-hidden="true">05<br>LIVE EFFECTS</span>
+      </header>
+      <div class="workspace">
+        <section id="gallery" aria-labelledby="gallery-title">
+          <h2 id="gallery-title">The effect library</h2>
+          <div id="cards" class="cards"></div>
+        </section>
+        <section id="editor" class="editor" aria-labelledby="effect-title">
+          <div class="editor-top">
+            <h2 id="effect-title" tabindex="-1"></h2>
+            <button id="playback" type="button">Pause</button>
+          </div>
+          <div id="preview" class="preview"></div>
+          <form id="controls"></form>
+          <details><summary>View HTML + CSS</summary><pre><code id="source"></code></pre></details>
+          <div class="actions">
+            <button id="copy" type="button">Copy code</button>
+            <button id="download" type="button">Download HTML</button>
+          </div>
+          <p id="status" role="status"></p>
+        </section>
+      </div>
+    </main>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
