@@ -23,16 +23,23 @@
           <div class="section-title"><h1 id="library-title">Motion library</h1><span id="count"></span></div>
           <label class="compact">Search<input id="search" type="search" placeholder="Find an animation"></label>
           <div class="filters"><label class="compact">Category<select id="category"></select></label><label class="check"><input id="only-favorites" type="checkbox"> Favorites</label></div>
+          <label class="check archive"><input id="include-archive" type="checkbox"> Include classic presets</label>
           <div id="cards" class="cards"></div>
           <button id="more" class="quiet" hidden>Show more</button>
         </section>
         <section class="canvas-panel" aria-labelledby="effect-title">
           <div class="section-title"><div><span class="kicker" id="effect-category"></span><h2 id="effect-title"></h2></div><button id="favorite" class="quiet" aria-pressed="false">Favorite</button></div>
-          <div id="preview" class="canvas"></div>
-          <div class="transport"><button id="playback">Pause</button><button id="replay">Restart</button><span id="motion-note"></span></div>
+          <p class="effect-description" id="effect-description"></p>
+          <div class="preview-toolbar">
+            <span id="effect-example"></span>
+            <label>Sample <select id="surface" aria-label="Sample website background"><option value="light">Light</option><option value="dark">Dark</option><option value="tinted">Color</option><option value="gradient">Gradient</option></select></label>
+          </div>
+          <div id="preview" class="canvas" data-surface="light"></div>
+          <div class="transport"><button id="playback">Pause</button><button id="replay">Replay</button><button id="transparent" aria-pressed="false">Transparent</button><span id="motion-note"></span></div>
           <div class="export">
-            <div class="actions"><button id="code-toggle" class="quiet" aria-controls="code-panel" aria-expanded="false">Preview HTML</button><button id="copy" class="quiet">Copy code</button><button id="download" class="primary">Download HTML</button></div>
-            <div id="code-panel" hidden><iframe id="code-preview" title="Standalone HTML preview" sandbox></iframe><pre tabindex="0"><code id="source"></code></pre></div>
+            <div class="actions"><button id="code-toggle" class="quiet" aria-controls="code-panel" aria-expanded="false">Preview HTML</button><button id="copy" class="quiet">Copy Embed Code</button><button id="copy-css" class="quiet">Copy CSS</button><button id="copy-js" class="quiet">Copy JavaScript</button><button id="download" class="primary">Download Standalone HTML</button></div>
+            <p id="export-note" class="export-note"></p>
+            <div id="code-panel" hidden><iframe id="code-preview" title="Standalone HTML preview" sandbox="allow-scripts"></iframe><label class="compact">Source <select id="source-kind"><option value="embed">Embed</option><option value="css">CSS</option><option value="js">JavaScript</option><option value="html">Standalone HTML</option></select></label><pre tabindex="0"><code id="source"></code></pre></div>
           </div>
         </section>
         <section class="inspector" aria-labelledby="properties"><div class="section-title"><h2 id="properties">Properties</h2><button id="reset" class="quiet">Reset</button></div><form id="controls"></form></section>

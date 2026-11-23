@@ -1,4 +1,6 @@
 import { groups } from './catalog.js'
+import { studioPresets } from './studio-presets.js'
+import { revealScript } from './reveal-script.js'
 
 const text = (value) => ({ type: 'text', label: 'Text', value })
 const range = (label, value, min, max, step = 1) => ({ type: 'range', label, value, min, max, step })
@@ -23,7 +25,7 @@ const originals = [
     id: 'wipe', name: 'Color Wipe', category: 'Transition', backdrop: '#ffdfd7',
     controls: { text: text('NEXT UP'), color: color('#9b2820'), duration: speed(2), angle: range('Skew angle', 10, 0, 30) },
     render: (v) => `<span>${escapeHtml(v.text)}</span>`,
-    css: '.af-wipe span{position:relative;isolation:isolate;overflow:hidden;padding:.3em .5em;background:#fffaf0;border:2px solid currentColor}.af-wipe span::after{position:absolute;content:"";inset:0 -25%;background:currentColor;transform:translateX(-100%);animation:af-wipe-pass var(--duration) ease-in-out infinite} @keyframes af-wipe-pass{50%{transform:translateX(0) skewX(calc(var(--angle) * 1deg))}100%{transform:translateX(100%) skewX(calc(var(--angle) * 1deg))}}',
+    css: '.af-wipe span{position:relative;isolation:isolate;overflow:hidden;padding:.3em .5em;border:2px solid currentColor}.af-wipe span::after{position:absolute;content:"";inset:0 -25%;background:currentColor;transform:translateX(-100%);animation:af-wipe-pass var(--duration) ease-in-out infinite} @keyframes af-wipe-pass{50%{transform:translateX(0) skewX(calc(var(--angle) * 1deg))}100%{transform:translateX(100%) skewX(calc(var(--angle) * 1deg))}}',
   },
   {
     id: 'orbit', name: 'Orbit Pop', category: 'Shape', backdrop: '#ffe89d',
@@ -87,11 +89,11 @@ ${scope} ${element}{${base};animation-name:${animation};animation-duration:var(-
 ${particleRecipe ? `${scope} .art{position:relative}${scope} i:nth-child(3n){color:var(--accent)}` : ''}
 ${panel && textRecipe ? `${scope} .art>span{color:#fff;text-shadow:0 1px 4px #000}` : ''}
 ${id === 'radar-sweep' ? '@property --sweep{syntax:"<angle>";initial-value:0deg;inherits:false}' : ''}
-@keyframes ${animation}{${frames}}`,
+@keyframes ${animation}{${frames}}`.replaceAll('--sweep', '--af-classic-radar-sweep'),
   }
 }
 
-export const effects = [
+export const archivedEffects = [
   ...originals.map((effect, index) => ({
     ...effect,
     category: originalCategories[index],
@@ -101,6 +103,9 @@ export const effects = [
   ...Object.entries(groups).flatMap(([category, recipes]) => recipes.map((entry, index) => recipe(category, entry, index))),
 ].map((effect) => ({
   ...effect,
+  archived: true,
+  description: 'An archived effect. Existing projects can still be edited and exported.',
+  example: 'Classic AnimationForge preset',
   controls: {
     ...effect.controls,
     speed: range('Playback speed', 1, .25, 3, .05),
@@ -115,7 +120,64 @@ export const effects = [
   },
 }))
 
-export const effectById = new Map(effects.map((effect) => [effect.id, effect]))
+const fonts = {
+  'Modern Sans': 'system-ui,sans-serif',
+  'Editorial Serif': 'Georgia,serif',
+  'Monospace': 'ui-monospace,monospace',
+  'Humanist': 'Verdana,sans-serif',
+}
+const easings = {
+  'Studio ease': 'cubic-bezier(.22,1,.36,1)',
+  Linear: 'linear',
+  'Ease in': 'ease-in',
+  'Ease out': 'ease-out',
+  'Ease in out': 'ease-in-out',
+  'Steps': 'steps(8,end)',
+}
+
+function preparePreset(preset) {
+  const scope = `.af-studio-${preset.id}`
+  const motion = 'animation:af-studio-' + preset.id
+    + ' var(--af-duration) var(--af-easing) var(--af-delay) var(--af-loop) var(--af-direction) both'
+  const typography = preset.controls.text ? {
+    textColor: { ...color(preset.textColor ?? '#292433'), label: 'Text color' },
+    font: select('Font family', 'Modern Sans', Object.keys(fonts)),
+    fontSize: range('Font size (px)', preset.fontSize ?? 24, 12, 86),
+    weight: range('Font weight', 650, 300, 900, 50),
+    align: select('Alignment', 'center', ['start', 'center', 'end']),
+    tracking: range('Letter spacing (px)', 0, -4, 12, .25),
+  } : {}
+  const controls = {
+    ...preset.controls, ...typography,
+    duration: range('Duration (seconds)', preset.duration ?? .8, .15, 18, .05),
+    speed: range('Playback speed', 1, .25, 3, .05),
+    delay: range('Delay (seconds)', 0, 0, 6, .05),
+    easing: select('Easing', preset.loop ? 'Ease in out' : 'Studio ease', Object.keys(easings)),
+    loop: select('Repeat', preset.loop ? 'continuous' : 'once', ['once', 'twice', 'continuous']),
+    direction: select('Direction', 'normal', ['normal', 'reverse', 'alternate', 'alternate-reverse']),
+    x: range('Horizontal offset', 0, -100, 100),
+    y: range('Vertical offset', 0, -85, 85),
+    background: select('Background', 'transparent', ['transparent', 'solid', 'gradient']),
+    background1: { ...color('#f5e9da'), label: 'Background color' },
+    background2: { ...color('#e3d6ef'), label: 'Gradient end color' },
+    gradientAngle: range('Gradient angle', 135, 0, 360),
+  }
+  if (preset.category === 'Backgrounds') controls.height = range('Height (px)', 160, 80, 480)
+  return {
+    ...preset, scope, controls, backdrop: '#f4ece2',
+    css: `${scope}{display:grid;box-sizing:border-box;isolation:isolate;position:relative;overflow:hidden;width:100%;min-width:0;min-height:var(--af-height,0px);background:var(--af-fill);container-type:inline-size}
+${scope} .af-stage{box-sizing:border-box;display:grid;align-items:center;justify-items:var(--af-align,center);min-width:0;min-height:inherit;translate:var(--af-x) var(--af-y);color:var(--af-textColor,inherit);text-align:var(--af-align,center);font-family:var(--af-font,inherit);font-weight:var(--af-weight,inherit);font-size:clamp(12px,10cqi,var(--af-fontSize,24px));letter-spacing:var(--af-tracking,normal);line-height:1.12;overflow-wrap:anywhere}
+${scope} :where(.af-copy,.af-action,.af-feature,.af-nav,.af-details){box-sizing:border-box;max-width:100%;letter-spacing:inherit}
+${scope} :where(.af-action,.af-feature,.af-nav){text-decoration:none}
+${scope} :where(a,button,summary):focus-visible{outline:2px solid currentColor;outline-offset:-2px}
+${preset.css.replaceAll('&', scope).replaceAll('@motion', 'af-studio-' + preset.id).replaceAll('@play', motion)}
+${scope}[data-paused] *,${scope}[data-paused] *::before,${scope}[data-paused] *::after{animation-play-state:paused!important}
+@media(prefers-reduced-motion:reduce){${scope} *,${scope} *::before,${scope} *::after{animation:none!important}}`,
+  }
+}
+
+export const effects = studioPresets.map(preparePreset)
+export const effectById = new Map([...archivedEffects, ...effects].map((effect) => [effect.id, effect]))
 export const defaults = (effect) => Object.fromEntries(Object.entries(effect.controls).map(([key, control]) => [key, control.value]))
 
 function escapeHtml(value) {
@@ -126,7 +188,7 @@ export function normalizeValues(effect, input = {}) {
   const values = defaults(effect)
   for (const [key, control] of Object.entries(effect.controls)) {
     const value = input[key]
-    if (control.type === 'text' && typeof value === 'string') values[key] = value.slice(0, 40)
+    if (control.type === 'text' && typeof value === 'string') values[key] = value.slice(0, effect.archived ? 40 : 120)
     if (control.type === 'color' && typeof value === 'string' && /^#[\da-f]{6}$/i.test(value)) values[key] = value
     if (control.type === 'select' && control.options.includes(value)) values[key] = value
     if (control.type === 'range' && typeof value === 'number' && Number.isFinite(value)) {
@@ -137,12 +199,35 @@ export function normalizeValues(effect, input = {}) {
   return values
 }
 
-export function renderEffect(effect, input = {}) {
+function fillFor({ background, background1, background2, gradientAngle }) {
+  return { solid: background1, gradient: `linear-gradient(${gradientAngle}deg,${background1},${background2})`, transparent: 'transparent' }[background]
+}
+
+function renderPreset(effect, values, demo) {
+  const { text: words, detail, destination, background, background1, background2, gradientAngle, duration, speed, ...properties } = values
+  const variables = {
+    ...properties,
+    ...(properties.font ? { font: fonts[properties.font] } : {}),
+    easing: easings[values.easing],
+    loop: { once: 1, twice: 2, continuous: 'infinite' }[values.loop],
+    duration: `${Math.max(.075, duration / speed)}s`,
+    delay: `${values.delay}s`,
+    fill: fillFor({ background, background1, background2, gradientAngle }),
+  }
+  for (const key of ['x', 'y', 'height', 'fontSize', 'tracking']) if (key in variables) variables[key] += 'px'
+  const style = Object.entries(variables).map(([key, value]) => `--af-${key}:${value}`).join(';')
+  const mode = (demo ? ' data-af-demo' : '') + (effect.behavior === 'reveal' ? ' data-af-reveal' : '')
+  const markup = `<div class="${effect.scope.slice(1)}"${mode} style="${style}"><div class="af-stage">${effect.render({ ...values, text: words, detail, destination, demo }, escapeHtml)}</div></div>`
+  return { css: effect.css, markup, js: effect.behavior === 'reveal' ? revealScript : '', style }
+}
+
+export function renderEffect(effect, input = {}, { demo = false } = {}) {
   const values = normalizeValues(effect, input)
+  if (!effect.archived) return renderPreset(effect, values, demo)
   const scope = `.af-${effect.id}`
   const { text: words, background, background1, background2, gradientAngle, duration, speed, ...properties } = values
   const minimumPeriod = { 'neon-flicker': 2, 'negative-flash': 1, 'signal-interference': 1.2 }[effect.id] ?? 0
-  const fill = { solid: background1, gradient: `linear-gradient(${gradientAngle}deg,${background1},${background2})`, transparent: 'transparent' }[background]
+  const fill = fillFor({ background, background1, background2, gradientAngle })
   const variables = Object.entries(properties).map(([key, value]) => `--${key}:${value}`).join(';')
   const css = `${scope}{box-sizing:border-box;display:grid;place-items:center;min-height:130px;width:100%;overflow:hidden;background:var(--fill);color:var(--color);text-align:center;overflow-wrap:anywhere;container-type:inline-size}
 ${scope} .stage{width:100%;height:100%;min-height:inherit;display:grid;place-items:center;font:900 clamp(15px,6cqi,34px)/1.1 system-ui,sans-serif;translate:calc(var(--x)*1px) calc(var(--y)*1px);scale:calc(var(--scale)/100)}
@@ -150,21 +235,32 @@ ${scope} .art{box-sizing:border-box}
 ${effect.css}
 ${scope}[data-paused] *,${scope}[data-paused] *::before,${scope}[data-paused] *::after{animation-play-state:paused!important}
 @media(prefers-reduced-motion:reduce){${scope} *,${scope} *::before,${scope} *::after{animation:none!important}}`
-  const markup = `<div class="af-${effect.id}" style="${variables};--fill:${fill};--duration:${Math.max(minimumPeriod, duration / speed)}s"><div class="stage">${effect.render({ ...values, text: words })}</div></div>`
-  return { css, markup }
+  const style = `${variables};--fill:${fill};--duration:${Math.max(minimumPeriod, duration / speed)}s`
+  const markup = `<div class="af-${effect.id}" style="${style}"><div class="stage">${effect.render({ ...values, text: words })}</div></div>`
+  return { css, markup, js: '', style }
 }
 
-export function exportHtml(effect, values) {
-  const { css, markup } = renderEffect(effect, values)
+export function exportCss(effect, values) {
+  const { css, style } = renderEffect(effect, values)
+  return `${effect.scope ?? '.af-' + effect.id}{${style}}\n${css}`
+}
+
+export function exportEmbed(effect, values, options) {
+  const { css, markup, js } = renderEffect(effect, values, options)
+  return `<style>\n${css}\n</style>\n${markup}${js ? `\n<script>\n${js}\n</script>` : ''}`
+}
+
+export function exportHtml(effect, values, options) {
   return `<!doctype html>
 <html lang="en">
+<head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${effect.name}</title>
-<style>
-html,body{margin:0;min-height:100%;background:transparent}
-${css}
-</style>
-${markup}
+<style>html,body{margin:0;background:transparent}</style>
+</head>
+<body>
+${exportEmbed(effect, values, options)}
+</body>
 </html>`
 }

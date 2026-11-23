@@ -1,6 +1,14 @@
 # AnimationForge
 
-AnimationForge Studio is an HTML animation editor with 125 original recipes across eight categories. The studio and dashboard require Hack Club sign-in. Downloaded animations are independent HTML/CSS documents and run offline.
+AnimationForge Studio is an HTML animation editor with 23 curated website presets. The studio and dashboard require Hack Club sign-in. Downloaded animations run offline. [The audit](docs/preset-audit.md) documents why the 125 original presets moved out of the main library. Existing projects and favorites can still open and export them.
+
+## Embedding motion
+
+Choose a preset, customize its properties, and use **Copy Embed Code** to paste the component into a page. Transparent exports have no canvas color. The sample background in the editor only changes what you see while working. Set a text color with suitable contrast for the website that will host the effect.
+
+**Copy CSS** includes the current visual settings and the component rules. Keep the component markup when integrating that CSS. **Copy JavaScript** is available for presets that need it, such as Section Focus. Most recipes use CSS alone. The optional link destination on buttons and navigation supports HTTP(S) URLs, site-relative paths, or anchors. An empty destination produces a native button that can be wired to an application action.
+
+**Download Standalone HTML** packages the same component without external fonts or scripts. The HTML preview shows the export's actual triggers. Use hover or keyboard focus for interactive effects and click to open disclosures.
 
 ## Setup and checks
 
@@ -15,7 +23,7 @@ CHROMIUM_PATH=/usr/bin/chromium npm run test:browser
 npm start
 ```
 
-The browser suite checks every export for visible motion and distinct rendered frames, then exercises the protected workspace and project dashboard with a test identity provider. The Node suite also verifies signed-token validation against a simulated OIDC provider.
+The browser suite checks each curated export over light, dark, colored, gradient, and transparent surfaces. It also exercises the protected workspace and project dashboard with a test identity provider. The Node suite verifies signed-token validation against a simulated OIDC provider and compatibility with original preset IDs.
 
 Vite's `npm run dev` is for editing frontend assets. Use `npm start` to exercise the built application and its authentication boundary. Without a configured provider, the sign-in screen reports that sign-in is unavailable. The OAuth callback requires HTTPS.
 

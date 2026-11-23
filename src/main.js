@@ -1,5 +1,5 @@
 import './style.css'
-import { defaults, effectById, effects, exportHtml, renderEffect } from './effects.js'
+import { archivedEffects, defaults, effectById, effects, exportCss, exportEmbed, exportHtml, renderEffect } from './effects.js'
 
 const byId = (id) => document.getElementById(id)
 const controls = byId('controls')
@@ -8,7 +8,6 @@ const grid = byId('cards')
 const codePanel = byId('code-panel')
 const title = byId('title')
 const media = matchMedia('(prefers-reduced-motion: reduce)')
-const categories = [...new Set(effects.map(({ category }) => category))]
 const installed = new Set()
 const sheet = document.head.appendChild(document.createElement('style'))
 const state = { effect: effects[0], values: defaults(effects[0]), paused: false, project: null, favorites: new Set(), limit: 24, dirty: false }
@@ -43,7 +42,7 @@ function guarded(action) {
 }
 
 function mount(node, effect, values) {
-  const { css, markup } = renderEffect(effect, values)
+  const { css, markup } = renderEffect(effect, values, { demo: true })
   if (!installed.has(effect.id)) {
     sheet.append(css + '\n')
     installed.add(effect.id)
@@ -57,13 +56,20 @@ function snapshot() {
 
 function updateCode() {
   if (codePanel.hidden) return
+  byId('source').textContent = sourceFor(byId('source-kind').value)
+  const frame = byId('code-preview')
   const html = snapshot()
-  byId('source').textContent = html
-  byId('code-preview').srcdoc = html
+  if (frame.srcdoc !== html) frame.srcdoc = html
+}
+
+function sourceFor(kind) {
+  if (kind === 'css') return exportCss(state.effect, state.values)
+  if (kind === 'js') return renderEffect(state.effect, state.values).js
+  return kind === 'html' ? snapshot() : exportEmbed(state.effect, state.values)
 }
 
 function updatePlayback() {
-  preview.firstElementChild.toggleAttribute('data-paused', state.paused)
+  preview.firstElementChild?.toggleAttribute('data-paused', state.paused)
   byId('playback').textContent = state.paused ? 'Play' : 'Pause'
   byId('playback').disabled = media.matches
   byId('replay').disabled = media.matches
@@ -84,7 +90,22 @@ function refreshPreview() {
 
 function buildControls() {
   controls.replaceChildren()
+  const groups = new Map([
+    ['Content & type', /^(text|detail|destination|font|weight|align|tracking)/],
+    ['Color & surface', /^(background|gradient|accent|foreground|secondary|color$)/],
+    ['Motion', /^(duration|speed|delay|loop|easing|direction)/],
+    ['Geometry', /.*/],
+  ])
+  const sections = new Map()
   for (const [key, field] of Object.entries(state.effect.controls)) {
+    const [group] = [...groups].find(([, pattern]) => pattern.test(key))
+    if (!sections.has(group)) {
+      const section = document.createElement('fieldset')
+      const legend = document.createElement('legend')
+      legend.textContent = group
+      section.append(legend)
+      sections.set(group, section)
+    }
     const label = document.createElement('label')
     label.className = 'field'
     label.dataset.property = key
@@ -97,25 +118,28 @@ function buildControls() {
     } else {
       input.type = field.type
       if (field.type === 'range') Object.assign(input, { min: field.min, max: field.max, step: field.step })
-      if (field.type === 'text') input.maxLength = 40
+      if (field.type === 'text') input.maxLength = state.effect.archived ? 40 : 120
     }
     input.value = state.values[key]
-    const output = document.createElement('output')
-    if (field.type === 'range') output.value = input.value
+    const output = document.createElement('span')
+    output.setAttribute('aria-hidden', 'true')
+    if (field.type === 'range') output.textContent = input.value
     input.addEventListener('input', () => {
       state.values[key] = field.type === 'range' ? input.valueAsNumber : input.value
-      if (field.type === 'range') output.value = input.value
+      if (field.type === 'range') output.textContent = input.value
       if (key === 'background') showBackgroundFields()
       state.dirty = true
       refreshPreview()
     })
     label.append(caption, output, input)
-    controls.append(label)
+    sections.get(group).append(label)
   }
+  for (const group of groups.keys()) if (sections.has(group)) controls.append(sections.get(group))
   showBackgroundFields()
 }
 
 function showBackgroundFields() {
+  byId('transparent').setAttribute('aria-pressed', String(state.values.background === 'transparent'))
   controls.querySelector('[data-property="background1"]').hidden = state.values.background === 'transparent'
   for (const key of ['background2', 'gradientAngle']) {
     controls.querySelector(`[data-property="${key}"]`).hidden = state.values.background !== 'gradient'
@@ -133,6 +157,13 @@ function selectEffect(effect, values = defaults(effect)) {
   state.values = values
   byId('effect-title').textContent = effect.name
   byId('effect-category').textContent = effect.category
+  byId('effect-description').textContent = effect.description
+  byId('effect-example').textContent = effect.example
+  const hasScript = Boolean(effect.behavior)
+  byId('copy-js').disabled = !hasScript
+  byId('source-kind').querySelector('[value="js"]').disabled = !hasScript
+  if (!hasScript && byId('source-kind').value === 'js') byId('source-kind').value = 'embed'
+  byId('export-note').textContent = hasScript ? 'Embed includes a small viewport observer.' : 'This preset uses HTML and CSS. JavaScript is unnecessary.'
   showFavorite()
   for (const card of grid.querySelectorAll('button')) card.setAttribute('aria-pressed', String(card.dataset.id === effect.id))
   buildControls()
@@ -140,7 +171,7 @@ function selectEffect(effect, values = defaults(effect)) {
 }
 
 function makeThumbnailVisible(node, visible) {
-  if (visible && !node.firstElementChild) mount(node, effectById.get(node.parentElement.dataset.id))
+  if (visible && node.isConnected && !node.firstElementChild) mount(node, effectById.get(node.parentElement.dataset.id))
   node.firstElementChild?.toggleAttribute('data-paused', !visible)
 }
 
@@ -152,29 +183,34 @@ function showLibrary(reset = true) {
   if (reset) state.limit = 24
   const query = byId('search').value.toLowerCase().trim()
   const category = byId('category').value
-  const filtered = effects.filter((effect) => (!category || effect.category === category)
+  const catalog = byId('include-archive').checked ? [...effects, ...archivedEffects] :
+    byId('only-favorites').checked ? [...effects, ...archivedEffects.filter((effect) => state.favorites.has(effect.id))] : effects
+  const filtered = catalog.filter((effect) => (!category || effect.category === category)
     && (!byId('only-favorites').checked || state.favorites.has(effect.id))
-    && `${effect.name} ${effect.category}`.toLowerCase().includes(query))
-  byId('count').textContent = `${filtered.length} of ${effects.length}`
+    && `${effect.name} ${effect.category} ${effect.example}`.toLowerCase().includes(query))
+  byId('count').textContent = `${filtered.length} of ${catalog.length}`
   byId('more').hidden = filtered.length <= state.limit
   observer?.disconnect()
   grid.replaceChildren()
   for (const effect of filtered.slice(0, state.limit)) {
-    const card = document.createElement('button')
+    const card = document.createElement('article')
+    const opener = document.createElement('button')
     card.className = 'card'
-    card.type = 'button'
-    card.dataset.id = effect.id
-    card.setAttribute('aria-pressed', String(effect.id === state.effect.id))
+    opener.type = 'button'
+    card.dataset.id = opener.dataset.id = effect.id
+    opener.setAttribute('aria-pressed', String(effect.id === state.effect.id))
     const thumb = document.createElement('div')
     thumb.className = 'thumb'
     thumb.setAttribute('aria-hidden', 'true')
+    thumb.inert = true
     thumb.style.setProperty('--thumbnail', effect.backdrop)
     const label = document.createElement('strong')
     label.textContent = effect.name
     const type = document.createElement('small')
-    type.textContent = effect.category
-    card.append(thumb, type, label)
-    card.addEventListener('click', () => {
+    type.textContent = effect.archived ? 'Classic' : effect.category
+    opener.append(type, label)
+    card.append(thumb, opener)
+    opener.addEventListener('click', () => {
       state.dirty = true
       selectEffect(effect)
     })
@@ -183,6 +219,15 @@ function showLibrary(reset = true) {
     else makeThumbnailVisible(thumb, true)
   }
   if (!filtered.length) grid.textContent = 'No matching animations.'
+}
+
+function fillCategories() {
+  const list = byId('category')
+  const prior = list.value
+  const catalog = byId('include-archive').checked || byId('only-favorites').checked ? [...effects, ...archivedEffects] : effects
+  list.replaceChildren(new Option('All categories', ''))
+  for (const category of new Set(catalog.map((effect) => effect.category))) list.add(new Option(category, category))
+  list.value = [...list.options].some((option) => option.value === prior) ? prior : ''
 }
 
 function download() {
@@ -213,10 +258,12 @@ async function save() {
 }
 
 function setupStudio() {
-  byId('category').add(new Option('All categories', ''))
-  categories.forEach((category) => byId('category').add(new Option(category, category)))
+  fillCategories()
   byId('search').addEventListener('input', () => showLibrary())
-  for (const id of ['category', 'only-favorites']) byId(id).addEventListener('change', () => showLibrary())
+  for (const id of ['category', 'only-favorites', 'include-archive']) byId(id).addEventListener('change', () => {
+    fillCategories()
+    showLibrary()
+  })
   byId('more').addEventListener('click', () => { state.limit += 24; showLibrary(false) })
   byId('favorite').addEventListener('click', guarded(async () => {
     const id = state.effect.id
@@ -235,6 +282,13 @@ function setupStudio() {
   media.addEventListener('change', updatePlayback)
   byId('playback').addEventListener('click', () => { state.paused = !state.paused; updatePlayback() })
   byId('replay').addEventListener('click', () => { state.paused = false; refreshPreview() })
+  byId('surface').addEventListener('change', (event) => { preview.dataset.surface = event.target.value })
+  byId('transparent').addEventListener('click', () => {
+    state.values.background = state.values.background === 'transparent' ? 'solid' : 'transparent'
+    state.dirty = true
+    buildControls()
+    refreshPreview()
+  })
   byId('code-toggle').addEventListener('click', () => {
     if (codePanel.hidden) openCode()
     else {
@@ -243,16 +297,20 @@ function setupStudio() {
       byId('code-toggle').setAttribute('aria-expanded', 'false')
     }
   })
-  byId('copy').addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(snapshot())
-      report('HTML copied.')
-    } catch {
-      openCode()
-      byId('source').parentElement.focus()
-      report('Clipboard unavailable. Select the code or download it.')
-    }
-  })
+  byId('source-kind').addEventListener('change', updateCode)
+  for (const [id, kind, label] of [['copy', 'embed', 'Embed code'], ['copy-css', 'css', 'CSS'], ['copy-js', 'js', 'JavaScript']]) {
+    byId(id).addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(sourceFor(kind))
+        report(`${label} copied.`)
+      } catch {
+        byId('source-kind').value = kind
+        openCode()
+        byId('source').parentElement.focus()
+        report('Clipboard unavailable. Select the displayed source or download HTML.')
+      }
+    })
+  }
   byId('download').addEventListener('click', download)
   window.addEventListener('beforeunload', (event) => { if (state.dirty) event.preventDefault() })
   window.addEventListener('pageshow', (event) => {

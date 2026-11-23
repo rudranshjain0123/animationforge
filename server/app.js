@@ -1,8 +1,11 @@
-import { randomBytes, timingSafeEqual } from 'node:crypto'
+import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import express from 'express'
 import { openStorage } from './storage.js'
 import { projectRoutes } from './projects.js'
+import { revealScript } from '../src/reveal-script.js'
+
+const revealHash = createHash('sha256').update(`\n${revealScript}\n`).digest('base64')
 
 const token = () => randomBytes(32).toString('base64url')
 const transactionAge = 10 * 60 * 1000
@@ -37,7 +40,7 @@ export function createApp({ origin, provider, storage = openStorage() }) {
     res.set({
       'X-Content-Type-Options': 'nosniff',
       'Referrer-Policy': 'same-origin',
-      'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+      'Content-Security-Policy': `default-src 'self'; script-src 'self' 'sha256-${revealHash}'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'`,
     })
     next()
   })
