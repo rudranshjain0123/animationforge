@@ -1,69 +1,40 @@
 # AnimationForge
 
-A responsive Motion Code playground with five animations. Customize effects, preview them live, and copy or download standalone HTML and CSS.
+AnimationForge Studio is an HTML animation editor with 125 original recipes across eight categories. The studio and dashboard require Hack Club sign-in. Downloaded animations are independent HTML/CSS documents and run offline.
 
-## Install and run
+## Setup and checks
 
-Use Node.js 20.19+ on the 20.x line, or 22.12+.
+Use Node.js 22.13 or newer with `node:sqlite` available.
 
 ```sh
 npm ci
-npm run dev
-```
-
-Open the URL printed by Vite.
-
-## Checks and production build
-
-```sh
 npm run lint
 npm test
 npm run build
-npm run preview
+CHROMIUM_PATH=/usr/bin/chromium npm run test:browser
+npm start
 ```
 
-The build writes static files to `dist/`. The five animations work without a backend, database, or environment variables.
+The browser suite checks every export for visible motion and distinct rendered frames, then exercises the protected workspace and project dashboard with a test identity provider. The Node suite also verifies signed-token validation against a simulated OIDC provider.
 
-## Hack Club Auth on Nest
+Vite's `npm run dev` is for editing frontend assets. Use `npm start` to exercise the built application and its authentication boundary. Without a configured provider, the sign-in screen reports that sign-in is unavailable. The OAuth callback requires HTTPS.
 
-Hack Club Auth exposes the `name` claim through `profile`. Its documented OIDC flow does not define a `name` scope. Login stays disabled until the server configuration explicitly opts into `openid email profile`. The [official OIDC guide](https://auth.hackclub.com/docs/oidc-guide) describes the supported claims and discovery.
+## Hack Club Nest
 
-1. In Hack Club Auth Developer Apps, ensure the client permits `openid`, `email`, and `profile` and register this exact callback:
-   `https://animationforge.rudranshjain0123.hackclub.app/auth/callback`.
-2. On Nest, update your checkout and build:
+Keep the existing domain, HTTPS reverse proxy, systemd service, and port 3000. The proxy should send the whole site to `127.0.0.1:3000`. Set up the following in a staging checkout or during your normal release process:
 
-   ```sh
-   git pull --ff-only
-   npm ci
-   npm run build
-   cp .env.example .env
-   chmod 600 .env
+1. Run `npm ci`, `npm run lint`, `npm test`, and `npm run build` with the same Node major version used by systemd.
+2. Keep the production environment and client secret in their existing systemd environment file or private `.env`. Review variables against `.env.example`. The current deployment should keep:
+
+   ```dotenv
+   APP_ORIGIN=https://animationforge.rudranshjain0123.hackclub.app
+   PORT=3000
+   HACKCLUB_OIDC_SCOPE="openid email profile"
    ```
 
-   If `.env` already exists, keep it and update its settings instead of copying over it. Set `HACKCLUB_CLIENT_ID` to `8281f015ab0dc95bdf7810b64321a59e`, set `HACKCLUB_CLIENT_SECRET` to the matching secret from Developer Apps, and, if approved, set `HACKCLUB_OIDC_SCOPE="openid email profile"`. Keep the configured HTTPS origin and select an unused local `PORT`.
-3. Run `npm start` from the checkout using your Nest process manager. Point the existing domain's HTTPS reverse proxy at `127.0.0.1:3000` (replace the port with your configured value). For a Caddy deployment, the site block is:
+   Keep the existing `HACKCLUB_CLIENT_ID` and `HACKCLUB_CLIENT_SECRET`. Hack Club Auth releases the name claim with its `profile` scope. The exact registered callback remains `https://animationforge.rudranshjain0123.hackclub.app/auth/callback`. See the [official OIDC guide](https://auth.hackclub.com/docs/oidc-guide).
+3. Give the systemd service user access to a private persistent writable directory for SQLite. Set `DATABASE_PATH` to an absolute file path in that directory if releases replace the checkout directory. Otherwise it defaults to `data/animationforge.sqlite` under the service working directory. Back up the database via a SQLite-aware backup method and keep it outside the HTTPS document root.
+4. Keep the existing `WorkingDirectory` pointed at the release and `ExecStart` running `npm start` with Node.js 22.13+. The command starts the same `server/index.js` entry point. The server binds to localhost. Allow outbound HTTPS to `auth.hackclub.com` and exclude OAuth callback query strings from proxy access logs.
+5. After approval to deploy, restart the existing unit using your Nest release process. Confirm unauthenticated visitors see sign-in and `/api/projects` returns 401. Complete a real sign-in, save a project, restart the unit, verify that the session and project survive, then sign out.
 
-   ```caddyfile
-   animationforge.rudranshjain0123.hackclub.app {
-       reverse_proxy 127.0.0.1:3000
-   }
-   ```
-
-   Proxy the whole site, including `/auth/callback`. The Node process serves `dist/` and handles `/auth/*`. Allow outbound HTTPS to `auth.hackclub.com`. Avoid logging callback query strings at the proxy.
-4. After deployment, open the site while signed out, complete Hack Club sign-in, verify your name appears, sign out, and check that the gallery remains usable.
-
-The server uses short-lived PKCE transactions and opaque, HTTP-only session cookies. Sessions expire after eight hours and are cleared on restart, so run a single instance. Sign out ends the AnimationForge session. Provider tokens stay server-side and are discarded after validation.
-
-## Static deployment without sign-in
-
-Run `npm ci && npm run build` in the checkout. Copy the contents of `dist/` to the directory your Nest static site serves. For an existing Nest static file server, set its document root to `dist/` or copy the build into its configured root. For example, from the build machine after setting `NEST_USER` and `NEST_WEB_ROOT` to your account and existing site directory:
-
-```sh
-scp -r dist/. "$NEST_USER@hackclub.app:$NEST_WEB_ROOT/"
-```
-
-Serve the built files using your existing Nest web server and domain configuration. Use Vite preview for local verification.
-
-## Prototype scope
-
-Springy Type, Dot Parade, Color Wipe, Orbit Pop, and Looping Ticker are available. Optional Hack Club sign-in shows the authenticated user's name. AI generation, cloud saves, and quota management are outside this prototype.
+The app persists the stable Hack Club subject, display name, hashed session identifiers, projects, and favorites. It discards provider tokens after verification. Sessions expire after eight hours. Pending login transactions live in memory for ten minutes, so keep the existing single-service deployment. Sessions from the previous in-memory release require one fresh sign-in.

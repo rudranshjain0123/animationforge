@@ -1,6 +1,8 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import express from 'express'
+import { openStorage } from './storage.js'
+import { projectRoutes } from './projects.js'
 
 const token = () => randomBytes(32).toString('base64url')
 const transactionAge = 10 * 60 * 1000
@@ -25,19 +27,27 @@ function prune(store) {
   for (const [key, value] of store) if (value.expires <= Date.now()) store.delete(key)
 }
 
-export function createApp({ origin, provider }) {
+export function createApp({ origin, provider, storage = openStorage() }) {
   const app = express()
-  const sessions = new Map()
   const transactions = new Map()
+  const activeSession = (req) => storage.session(cookie(req, sessionCookie))
+  const dist = fileURLToPath(new URL('../dist/', import.meta.url))
   app.disable('x-powered-by')
+  app.use((_req, res, next) => {
+    res.set({
+      'X-Content-Type-Options': 'nosniff',
+      'Referrer-Policy': 'same-origin',
+      'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+    })
+    next()
+  })
   app.use('/auth', (_req, res, next) => {
     res.set({ 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' })
     next()
   })
 
   app.get('/auth/session', (req, res) => {
-    prune(sessions)
-    const session = sessions.get(cookie(req, sessionCookie))
+    const session = activeSession(req)
     res.json({ enabled: Boolean(provider), user: session ? { name: session.name, expires: session.expires } : null })
   })
 
@@ -72,12 +82,10 @@ export function createApp({ origin, provider }) {
       callback.search = new URL(req.originalUrl, origin).search
       const claims = await provider.finish(callback, flow)
       const name = typeof claims?.name === 'string' ? claims.name.trim().slice(0, 160) : ''
-      if (!claims?.sub || !name) return res.redirect(303, '/?auth=failed')
-      prune(sessions)
-      sessions.delete(cookie(req, sessionCookie))
-      if (sessions.size >= 5000) return res.redirect(303, '/?auth=unavailable')
+      if (typeof claims?.sub !== 'string' || !claims.sub || !name) return res.redirect(303, '/?auth=failed')
+      storage.endSession(cookie(req, sessionCookie))
       const sessionId = token()
-      sessions.set(sessionId, { subject: claims.sub, name, expires: Date.now() + sessionAge })
+      storage.startSession(sessionId, claims.sub, name, Date.now() + sessionAge)
       res.cookie(sessionCookie, sessionId, { ...cookieOptions, maxAge: sessionAge })
       return res.redirect(303, '/')
     } catch {
@@ -87,13 +95,31 @@ export function createApp({ origin, provider }) {
 
   app.post('/auth/logout', (req, res) => {
     if (req.get('origin') !== origin) return res.sendStatus(403)
-    sessions.delete(cookie(req, sessionCookie))
+    storage.endSession(cookie(req, sessionCookie))
     transactions.delete(cookie(req, transactionCookie))
     res.clearCookie(sessionCookie, cookieOptions)
     res.clearCookie(transactionCookie, cookieOptions)
     return res.redirect(303, '/')
   })
 
-  app.use(express.static(fileURLToPath(new URL('../dist/', import.meta.url))))
+  app.use('/api', (req, res, next) => {
+    res.set('Cache-Control', 'no-store')
+    const session = activeSession(req)
+    if (!session) return res.sendStatus(401)
+    if (!['GET', 'HEAD'].includes(req.method) && req.get('origin') !== origin) return res.sendStatus(403)
+    res.locals.subject = session.subject
+    next()
+  }, express.json({ limit: '12kb' }), projectRoutes(storage))
+  app.use('/assets', express.static(dist + 'assets', { index: false, immutable: true, maxAge: '1y' }))
+  app.get(['/', '/index.html', '/projects'], (req, res) => {
+    res.set('Cache-Control', 'no-store')
+    return res.sendFile(activeSession(req) ? 'index.html' : 'login.html', { root: dist })
+  })
+  app.use((error, _req, res, next) => {
+    if (res.headersSent) return next(error)
+    const status = error.status >= 400 && error.status < 500 ? error.status : 500
+    if (status === 500) console.error('AnimationForge request failed:', error.code || error.name)
+    res.status(status).json({ error: status === 500 ? 'Unexpected server error.' : 'Invalid request.' })
+  })
   return app
 }

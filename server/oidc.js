@@ -3,7 +3,7 @@ import * as oidc from 'openid-client'
 const issuer = new URL('https://auth.hackclub.com')
 export const supportedScope = 'openid email profile'
 
-export function hackClubProvider({ clientId, clientSecret, origin }) {
+export function hackClubProvider({ clientId, clientSecret, origin, fetch }) {
   const redirectUri = new URL('/auth/callback', origin).href
   let discovery
   async function configuration() {
@@ -12,6 +12,7 @@ export function hackClubProvider({ clientId, clientSecret, origin }) {
     }, oidc.ClientSecretPost(clientSecret), {
       execute: [oidc.enableNonRepudiationChecks],
       timeout: 10,
+      ...(fetch ? { [oidc.customFetch]: fetch } : {}),
     }).catch((error) => {
       discovery = undefined
       throw error

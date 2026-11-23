@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "engines": {
-    "node": "^20.19.0 || >=22.12.0"
+    "node": ">=22.13.0"
   },
   "scripts": {
     "dev": "vite",
@@ -11,10 +11,12 @@
     "build": "vite build",
     "lint": "eslint .",
     "test": "node --test",
+    "test:browser": "node --test browser/studio.js",
     "preview": "vite preview"
   },
   "devDependencies": {
     "eslint": "^9.39.0",
+    "playwright-core": "^1.65.1",
     "vite": "^7.0.0"
   },
   "dependencies": {

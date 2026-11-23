@@ -1,55 +1,49 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#fff8eb">
-    <title>AnimationForge — Motion Code</title>
-  </head>
-  <body>
-    <aside class="sidebar">
-      <a class="brand" href="./"><span aria-hidden="true">✦</span> AnimationForge</a>
-      <a class="nav-link" href="#gallery">Motion Code</a>
-      <div class="account">
-        <a id="auth-login" href="/auth/login" hidden>Continue with Hack Club</a>
-        <form id="auth-account" method="post" action="/auth/logout" hidden>
-          <strong id="auth-name"></strong>
-          <button type="submit">Sign out</button>
-        </form>
-        <span id="auth-status" role="status"></span>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#f7f3e9">
+  <title>AnimationForge Studio</title>
+</head>
+<body class="studio">
+  <header class="topbar">
+    <a class="brand" href="/"><span aria-hidden="true">✳</span> AnimationForge</a>
+    <nav aria-label="Workspace"><a id="studio-link" href="/">Studio</a><a id="projects-link" href="/projects">Projects</a></nav>
+    <form class="account" method="post" action="/auth/logout"><strong id="auth-name"></strong><button class="quiet">Sign out</button></form>
+  </header>
+  <main>
+    <section id="studio" class="studio-screen" hidden>
+      <div class="project-bar">
+        <label class="project-title">Project title<input id="title" value="Untitled animation" maxlength="90" required></label>
+        <div class="actions"><button id="new" class="quiet">New</button><button id="save" class="primary">Save project</button></div>
       </div>
-      <p>Made for people who make things.</p>
-    </aside>
-    <main>
-      <header>
-        <div>
-          <p class="eyebrow">MOTION CODE / VOL. 01</p>
-          <h1>Beautiful motion,<br><em>ready to remix.</em></h1>
-          <p>Pick an effect, make it yours, and take the code anywhere.</p>
-        </div>
-        <span class="sticker" aria-hidden="true">05<br>LIVE EFFECTS</span>
-      </header>
       <div class="workspace">
-        <section id="gallery" aria-labelledby="gallery-title">
-          <h2 id="gallery-title">The effect library</h2>
+        <section class="library" aria-labelledby="library-title">
+          <div class="section-title"><h1 id="library-title">Motion library</h1><span id="count"></span></div>
+          <label class="compact">Search<input id="search" type="search" placeholder="Find an animation"></label>
+          <div class="filters"><label class="compact">Category<select id="category"></select></label><label class="check"><input id="only-favorites" type="checkbox"> Favorites</label></div>
           <div id="cards" class="cards"></div>
+          <button id="more" class="quiet" hidden>Show more</button>
         </section>
-        <section id="editor" class="editor" aria-labelledby="effect-title">
-          <div class="editor-top">
-            <h2 id="effect-title" tabindex="-1"></h2>
-            <button id="playback" type="button">Pause</button>
+        <section class="canvas-panel" aria-labelledby="effect-title">
+          <div class="section-title"><div><span class="kicker" id="effect-category"></span><h2 id="effect-title"></h2></div><button id="favorite" class="quiet" aria-pressed="false">Favorite</button></div>
+          <div id="preview" class="canvas"></div>
+          <div class="transport"><button id="playback">Pause</button><button id="replay">Restart</button><span id="motion-note"></span></div>
+          <div class="export">
+            <div class="actions"><button id="code-toggle" class="quiet" aria-controls="code-panel" aria-expanded="false">Preview HTML</button><button id="copy" class="quiet">Copy code</button><button id="download" class="primary">Download HTML</button></div>
+            <div id="code-panel" hidden><iframe id="code-preview" title="Standalone HTML preview" sandbox></iframe><pre tabindex="0"><code id="source"></code></pre></div>
           </div>
-          <div id="preview" class="preview"></div>
-          <form id="controls"></form>
-          <details><summary>View HTML + CSS</summary><pre><code id="source"></code></pre></details>
-          <div class="actions">
-            <button id="copy" type="button">Copy code</button>
-            <button id="download" type="button">Download HTML</button>
-          </div>
-          <p id="status" role="status"></p>
         </section>
+        <section class="inspector" aria-labelledby="properties"><div class="section-title"><h2 id="properties">Properties</h2><button id="reset" class="quiet">Reset</button></div><form id="controls"></form></section>
       </div>
-    </main>
-    <script type="module" src="/src/main.js"></script>
-  </body>
+    </section>
+    <section id="projects" class="projects" hidden>
+      <div class="section-title"><h1>Your projects</h1><a href="/" id="new-link" class="primary">New project</a></div>
+      <div id="project-list" class="project-list"></div>
+    </section>
+    <p class="notice" id="status" role="status"></p>
+  </main>
+  <script type="module" src="/src/main.js"></script>
+</body>
 </html>
