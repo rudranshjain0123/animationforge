@@ -17,6 +17,12 @@ button, summary { cursor: pointer; }
 .brand span { display: inline-grid; place-items: center; background: var(--coral); color: var(--ink); border-radius: 7px; width: 27px; }
 .sidebar .nav-link { margin-top: 30px; padding: 9px 12px; color: var(--ink); background: #fff8eb; border-radius: 7px; font-weight: 750; }
 .sidebar p { margin-top: auto; font-size: 12px; color: #e6d8c5; }
+.account { margin-top: 14px; min-width: 0; }
+.account a:not([hidden]), .account button { display: inline-block; border: 0; border-radius: 7px; background: #ffcfbc; color: #3a1615; font-weight: 800; font-size: 13px; padding: 9px 10px; }
+.account a:hover, .account button:hover { background: #ffad94; }
+.account strong { display: block; font-size: 13px; margin-bottom: 6px; overflow-wrap: anywhere; }
+.account [role="status"] { display: block; font-size: 12px; margin-top: 5px; color: #ffcfbc; }
+.account [role="status"]:empty { display: none; }
 main { width: 100%; max-width: 1420px; padding: clamp(20px, 5vw, 64px); min-width: 0; }
 header { display: flex; align-items: center; justify-content: space-between; gap: 22px; padding-bottom: 24px; border-bottom: 1px solid #d8cfc0; }
 .eyebrow, .card small { font-weight: 850; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; }

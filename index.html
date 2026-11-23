@@ -10,6 +10,14 @@
     <aside class="sidebar">
       <a class="brand" href="./"><span aria-hidden="true">✦</span> AnimationForge</a>
       <a class="nav-link" href="#gallery">Motion Code</a>
+      <div class="account">
+        <a id="auth-login" href="/auth/login" hidden>Continue with Hack Club</a>
+        <form id="auth-account" method="post" action="/auth/logout" hidden>
+          <strong id="auth-name"></strong>
+          <button type="submit">Sign out</button>
+        </form>
+        <span id="auth-status" role="status"></span>
+      </div>
       <p>Made for people who make things.</p>
     </aside>
     <main>

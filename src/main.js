@@ -1,4 +1,5 @@
 import './style.css'
+import './auth.js'
 import { defaults, effects, exportHtml, renderEffect } from './effects.js'
 
 const byId = (id) => document.getElementById(id)
